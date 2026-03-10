@@ -25,7 +25,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // ─── Provider Config ───────────────────────────────────────────────────────────
-const PROVIDER          = (process.env.PROVIDER || 'anthropic').toLowerCase();
+const PROVIDER          =  'groq';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const OPENAI_API_KEY    = process.env.OPENAI_API_KEY;
 const MAX_TOKENS        = parseInt(process.env.MAX_TOKENS || '1024', 10);
@@ -50,64 +50,23 @@ function validateMessages(messages) {
   }
   return null;
 }
+async function callGroq(messages) {
 
-// ─── Anthropic Handler ─────────────────────────────────────────────────────────
-async function callAnthropic(messages) {
-  if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set.');
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || 'claude-opus-4-6',
-      max_tokens: MAX_TOKENS,
-      system: SYSTEM_PROMPT,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
-    }),
+      model: "llama3-70b-8192",
+      messages: messages.map(m => ({ role: m.role, content: m.content }))
   });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Anthropic API error: ${response.status}`);
-  }
-
   const data = await response.json();
-  return data.content?.[0]?.text || 'No response from Claude.';
+
+  return data.choices?.[0]?.message?.content || "No response from Groq";
 }
-
-// ─── OpenAI Handler ────────────────────────────────────────────────────────────
-async function callOpenAI(messages) {
-  if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set.');
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || 'gpt-4o',
-      max_tokens: MAX_TOKENS,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `OpenAI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || 'No response from OpenAI.';
-}
-
 // ─── Chat Endpoint ─────────────────────────────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
   try {
@@ -123,12 +82,8 @@ app.post('/api/chat', async (req, res) => {
     const trimmedMessages = messages.slice(-20);
 
     // Call the appropriate provider
-    let reply;
-    if (PROVIDER === 'openai') {
-      reply = await callOpenAI(trimmedMessages);
-    } else {
-      reply = await callAnthropic(trimmedMessages);
-    }
+   let reply;
+    reply = await callGroq(trimmedMessages);
 
     return res.json({ reply, provider: PROVIDER });
 
