@@ -61,9 +61,21 @@ const response = await fetch(
 
 const data = await response.json();
 
-const reply =
-  data?.choices?.[0]?.message?.content ||
-  "No response from Groq";
+if (!response.ok) {
+  console.error("Groq API error:", data);
+  return res.status(500).json({
+    error: data?.error?.message || "Groq API request failed"
+  });
+}
+
+const reply = data?.choices?.[0]?.message?.content;
+
+if (!reply) {
+  console.error("Unexpected Groq response:", data);
+  return res.status(500).json({
+    error: "Groq returned no message"
+  });
+}
 
 return res.json({
   reply: reply,
