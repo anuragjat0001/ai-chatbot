@@ -26,7 +26,7 @@ app.get("/api/health", (req, res) => {
 res.json({
 status: "ok",
 provider: PROVIDER,
-model: "llama3-70b-8192",
+model: "llama-3.3-70b-versatile",
 timestamp: new Date().toISOString()
 });
 });
@@ -53,7 +53,7 @@ const response = await fetch(
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: "llama3-70b-8192",
+      model: "llama-3.3-70b-versatile",
       messages: messages
     })
   }
