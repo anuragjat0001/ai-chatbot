@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuralChat — AI Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── CSS Reset & Variables ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── Dark Theme ──────────────────────────────────────────────────────── */
+    [data-theme="dark"] {
+      --bg-base:      #0a0a0f;
+      --bg-surface:   #111118;
+      --bg-elevated:  #1a1a26;
+      --bg-input:     #16161f;
+      --border:       rgba(255,255,255,0.07);
+      --border-focus: rgba(99,102,241,0.6);
+      --text-primary: #f0f0f8;
+      --text-secondary: #8888aa;
+      --text-muted:   #44445a;
+      --accent:       #6366f1;
+      --accent-glow:  rgba(99,102,241,0.25);
+      --accent-hover: #818cf8;
+      --user-bubble:  #1e1e35;
+      --user-border:  rgba(99,102,241,0.3);
+      --ai-bubble:    #14141e;
+      --ai-border:    rgba(255,255,255,0.06);
+      --danger:       #ef4444;
+      --success:      #22c55e;
+      --scrollbar:    rgba(255,255,255,0.08);
+      --noise-opacity: 0.03;
+      --header-blur:  rgba(10,10,15,0.85);
+    }
+
+    /* ─── Light Theme ─────────────────────────────────────────────────────── */
+    [data-theme="light"] {
+      --bg-base:      #f4f4f9;
+      --bg-surface:   #ffffff;
+      --bg-elevated:  #ededf5;
+      --bg-input:     #ffffff;
+      --border:       rgba(0,0,0,0.08);
+      --border-focus: rgba(99,102,241,0.5);
+      --text-primary: #111124;
+      --text-secondary: #55556e;
+      --text-muted:   #aaaacc;
+      --accent:       #6366f1;
+      --accent-glow:  rgba(99,102,241,0.15);
+      --user-bubble:  #eeeeff;
+      --user-border:  rgba(99,102,241,0.2);
+      --ai-bubble:    #ffffff;
+      --ai-border:    rgba(0,0,0,0.07);
+      --danger:       #dc2626;
+      --success:      #16a34a;
+      --scrollbar:    rgba(0,0,0,0.1);
+      --noise-opacity: 0.015;
+      --header-blur:  rgba(244,244,249,0.85);
+    }
+
+    /* ─── Base ────────────────────────────────────────────────────────────── */
+    html, body {
+      height: 100%;
+      font-family: var(--font-body);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      overflow: hidden;
+      transition: background var(--transition-slow), color var(--transition-slow);
+    }
+
+    /* Subtle noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: var(--noise-opacity);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── App Shell ───────────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Header ──────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--header-blur);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: background var(--transition-slow);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 0 20px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .logo-mark svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text-primary);
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .header-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-glow);
+      border: 1px solid rgba(99,102,241,0.3);
+      padding: 2px 7px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    /* ─── Chat Container ──────────────────────────────────────────────────── */
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 24px;
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    #chat-container::-webkit-scrollbar { width: 4px; }
+    #chat-container::-webkit-scrollbar-track { background: transparent; }
+    #chat-container::-webkit-scrollbar-thumb {
+      background: var(--scrollbar);
+      border-radius: 4px;
+    }
+
+    /* ─── Messages ────────────────────────────────────────────────────────── */
+    .message-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 780px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 8px 0;
+      animation: messageSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    @keyframes messageSlide {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-wrapper.user { align-items: flex-end; }
+    .message-wrapper.ai   { align-items: flex-start; }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      padding: 0 4px;
+    }
+
+    .message-wrapper.user .message-meta { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-display);
+      flex-shrink: 0;
+    }
+
+    .avatar.user-avatar {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .avatar.ai-avatar {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--accent);
+    }
+
+    .sender-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .message-bubble {
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      line-height: 1.65;
+      font-size: 15px;
+      position: relative;
+      max-width: 85%;
+    }
+
+    .message-wrapper.user .message-bubble {
+      background: var(--user-bubble);
+      border: 1px solid var(--user-border);
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+    }
+
+    .message-wrapper.ai .message-bubble {
+      background: var(--ai-bubble);
+      border: 1px solid var(--ai-border);
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+      box-shadow: 0 1px 12px rgba(0,0,0,0.08);
+    }
+
+    /* ─── Code blocks inside messages ────────────────────────────────────── */
+    .message-bubble pre {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      overflow-x: auto;
+      margin: 10px 0;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .message-bubble code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--bg-elevated);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent-hover);
+    }
+
+    .message-bubble pre code {
+      background: none;
+      padding: 0;
+      color: var(--text-primary);
+    }
+
+    /* ─── Message Actions (copy btn) ─────────────────────────────────────── */
+    .message-actions {
+      display: flex;
+      gap: 6px;
+      padding: 4px 4px 0;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .message-wrapper:hover .message-actions { opacity: 1; }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .action-btn svg { width: 12px; height: 12px; }
+    .action-btn.copied { color: var(--success); border-color: var(--success); }
+
+    /* ─── Typing Indicator ────────────────────────────────────────────────── */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 14px 18px;
+      background: var(--ai-bubble);
+      border: 1px solid var(--ai-border);
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+      width: fit-content;
+      box-shadow: 0 1px 12px rgba(0,0,0,0.08);
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 60%, 100% { transform: scale(1); opacity: 0.4; }
+      30% { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* ─── Empty / Welcome State ───────────────────────────────────────────── */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 40px 24px;
+      max-width: 640px;
+      margin: 0 auto;
+      width: 100%;
+      text-align: center;
+      animation: fadeUp 0.5s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .welcome-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 0 40px var(--accent-glow);
+    }
+
+    .welcome-icon svg { width: 32px; height: 32px; color: var(--accent); }
+
+    #empty-state h2 {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+    }
+
+    #empty-state p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .suggestion-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .suggestion-card {
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--transition);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .suggestion-card:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(99,102,241,0.15);
+    }
+
+    .suggestion-card strong {
+      display: block;
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+      font-weight: 500;
+    }
+
+    /* ─── Error Message ───────────────────────────────────────────────────── */
+    .error-toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-family: var(--font-mono);
+      z-index: 999;
+      opacity: 0;
+      transition: all var(--transition);
+      backdrop-filter: blur(12px);
+      max-width: calc(100vw - 48px);
+      text-align: center;
+    }
+
+    .error-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ─── Input Area ──────────────────────────────────────────────────────── */
+    #input-area {
+      padding: 16px 24px 24px;
+      background: var(--header-blur);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      transition: background var(--transition-slow);
+    }
+
+    .input-wrapper {
+      max-width: 780px;
+      margin: 0 auto;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 12px 12px 12px 20px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    #message-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      resize: none;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.6;
+      max-height: 200px;
+      min-height: 24px;
+      overflow-y: auto;
+      placeholder-color: var(--text-muted);
+    }
+
+    #message-input::placeholder { color: var(--text-muted); }
+
+    #message-input::-webkit-scrollbar { width: 3px; }
+    #message-input::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+
+    #send-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: var(--accent);
+      border: none;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px var(--accent-glow);
+    }
+
+    #send-btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+
+    #send-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #send-btn svg { width: 16px; height: 16px; }
+
+    .input-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 780px;
+      margin: 10px auto 0;
+      padding: 0 4px;
+    }
+
+    .char-counter {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ─── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      header { padding: 12px 16px; }
+      #chat-container { padding: 20px 16px; }
+      #input-area { padding: 12px 16px 20px; }
+      .message-bubble { max-width: 92%; font-size: 14px; }
+      .suggestion-grid { grid-template-columns: 1fr; }
+      .header-badge { display: none; }
+      #empty-state h2 { font-size: 22px; }
+    }
+
+    /* ─── Theme transition ────────────────────────────────────────────────── */
+    * { transition-property: background-color, border-color, color, box-shadow;
+        transition-duration: 0.2s; }
+
+    /* ─── Scrollbar for Firefox ───────────────────────────────────────────── */
+    * { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <header>
+      <div class="header-left">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V15a1 1 0 0 0-2 0v1.93A8 8 0 0 1 4.07 11H6a1 1 0 0 0 0-2H4.07A8 8 0 0 1 11 4.07V6a1 1 0 0 0 2 0V4.07A8 8 0 0 1 19.93 11H18a1 1 0 0 0 0 2h1.93A8 8 0 0 1 13 16.93z"/></svg>
+        </div>
+        <span class="logo-text">Neural<span>Chat</span></span>
+        <span class="header-badge">AI</span>
+      </div>
+      <div class="header-right">
+        <!-- Clear Chat -->
+        <button class="icon-btn" id="clear-btn" title="Clear conversation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+        <!-- Theme Toggle -->
+        <button class="icon-btn" id="theme-btn" title="Toggle theme">
+          <svg id="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg id="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Chat Area ───────────────────────────────────────────────────── -->
+    <div id="chat-container">
+      <!-- Welcome / Empty State -->
+      <div id="empty-state">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+          </svg>
+        </div>
+        <h2>How can I help you today?</h2>
+        <p>Ask me anything — from complex coding problems to creative writing, research, analysis, and beyond.</p>
+        <div class="suggestion-grid">
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Explain a concept</strong>
+            Explain quantum entanglement in simple terms
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Write some code</strong>
+            Build a REST API with Node.js and Express
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Analyze & summarize</strong>
+            What are the key trends in AI in 2025?
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Creative writing</strong>
+            Write a short story about a time traveler
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Input Area ──────────────────────────────────────────────────── -->
+    <div id="input-area">
+      <div class="input-wrapper">
+        <textarea
+          id="message-input"
+          placeholder="Message NeuralChat..."
+          rows="1"
+          maxlength="4000"
+        ></textarea>
+        <button id="send-btn" disabled title="Send message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-footer">
+        <span class="char-counter" id="char-count">0 / 4000</span>
+        <span class="input-hint">Enter to send · Shift+Enter for newline</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Error Toast ─────────────────────────────────────────────────── -->
+  <div class="error-toast" id="error-toast"></div>
+
+  <script>
+    // ─── Configuration ───────────────────────────────────────────────────────
+    // IMPORTANT: Set your API endpoint here.
+    // If using the Node.js backend: 'http://localhost:3001/api/chat'
+    // If deploying to Vercel: '/api/chat'
+    const API_ENDPOINT = '/api/chat';
+
+    // ─── State ───────────────────────────────────────────────────────────────
+    let conversationHistory = [];
+    let isLoading = false;
+
+    // ─── DOM References ───────────────────────────────────────────────────────
+    const chatContainer  = document.getElementById('chat-container');
+    const emptyState     = document.getElementById('empty-state');
+    const messageInput   = document.getElementById('message-input');
+    const sendBtn        = document.getElementById('send-btn');
+    const clearBtn       = document.getElementById('clear-btn');
+    const themeBtn       = document.getElementById('theme-btn');
+    const charCount      = document.getElementById('char-count');
+    const errorToast     = document.getElementById('error-toast');
+    const sunIcon        = document.getElementById('sun-icon');
+    const moonIcon       = document.getElementById('moon-icon');
+
+    // ─── Theme ────────────────────────────────────────────────────────────────
+    const savedTheme = localStorage.getItem('neuralchat-theme') || 'dark';
+    applyTheme(savedTheme);
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('neuralchat-theme', theme);
+      sunIcon.style.display  = theme === 'dark'  ? 'block' : 'none';
+      moonIcon.style.display = theme === 'light' ? 'block' : 'none';
+    }
+
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    // ─── Input Handling ───────────────────────────────────────────────────────
+    messageInput.addEventListener('input', () => {
+      // Auto-resize
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+
+      // Char counter
+      const len = messageInput.value.length;
+      charCount.textContent = `${len} / 4000`;
+
+      // Enable/disable send
+      sendBtn.disabled = len === 0 || isLoading;
+    });
+
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!sendBtn.disabled) sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+    clearBtn.addEventListener('click', clearChat);
+
+    // ─── Suggestion Cards ─────────────────────────────────────────────────────
+    function useSuggestion(el) {
+      const text = el.querySelector('strong').nextSibling.textContent.trim();
+      messageInput.value = text;
+      messageInput.dispatchEvent(new Event('input'));
+      messageInput.focus();
+    }
+
+    // ─── Send Message ─────────────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || isLoading) return;
+
+      // Hide empty state
+      if (emptyState.parentNode) emptyState.remove();
+
+      // Add user message
+      addMessage('user', text);
+      conversationHistory.push({ role: 'user', content: text });
+
+      // Reset input
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      charCount.textContent = '0 / 4000';
+      sendBtn.disabled = true;
+
+      // Show loading
+      const loadingEl = addTypingIndicator();
+      isLoading = true;
+
+      try {
+        const res = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: conversationHistory })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Server error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const reply = data.reply || data.content || 'No response received.';
+
+        loadingEl.remove();
+        addMessage('ai', reply);
+        conversationHistory.push({ role: 'assistant', content: reply });
+
+      } catch (err) {
+        loadingEl.remove();
+        showError(err.message || 'Failed to connect. Is the backend running?');
+        addMessage('ai', `⚠️ Error: ${err.message}`);
+        // Keep last user message in history for retry context
+      } finally {
+        isLoading = false;
+        sendBtn.disabled = messageInput.value.trim().length === 0;
+      }
+    }
+
+    // ─── Add Message ──────────────────────────────────────────────────────────
+    function addMessage(role, content) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message-wrapper ${role === 'user' ? 'user' : 'ai'}`;
+
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const isUser = role === 'user';
+
+      wrapper.innerHTML = `
+        <div class="message-meta">
+          <div class="avatar ${isUser ? 'user-avatar' : 'ai-avatar'}">
+            ${isUser ? 'U' : 'AI'}
+          </div>
+          <span class="sender-name">${isUser ? 'You' : 'NeuralChat'}</span>
+          <span class="message-time">${now}</span>
+        </div>
+        <div class="message-bubble">${formatMessage(content)}</div>
+        <div class="message-actions">
+          <button class="action-btn copy-btn" title="Copy message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copy
+          </button>
+        </div>
+      `;
+
+      // Copy button handler
+      wrapper.querySelector('.copy-btn').addEventListener('click', function () {
+        navigator.clipboard.writeText(content).then(() => {
+          this.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Copied!`;
+          this.classList.add('copied');
+          setTimeout(() => {
+            this.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy`;
+            this.classList.remove('copied');
+          }, 2000);
+        });
+      });
+
+      chatContainer.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    // ─── Format Message (markdown-lite) ───────────────────────────────────────
+    function formatMessage(text) {
+      // Escape HTML first
+      let safe = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // Code blocks
+      safe = safe.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+        `<pre><code class="lang-${lang}">${code.trim()}</code></pre>`);
+
+      // Inline code
+      safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // Bold
+      safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // Italic
+      safe = safe.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+      // Links
+      safe = safe.replace(/\[(.+?)\]\((https?:\/\/[^\)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">$1</a>');
+
+      // Newlines
+      safe = safe.replace(/\n/g, '<br/>');
+
+      return safe;
+    }
+
+    // ─── Typing Indicator ─────────────────────────────────────────────────────
+    function addTypingIndicator() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message-wrapper ai';
+      wrapper.innerHTML = `
+        <div class="message-meta">
+          <div class="avatar ai-avatar">AI</div>
+          <span class="sender-name">NeuralChat</span>
+          <span class="message-time">thinking…</span>
+        </div>
+        <div class="typing-indicator">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>`;
+      chatContainer.appendChild(wrapper);
+      scrollToBottom();
+      return wrapper;
+    }
+
+    // ─── Clear Chat ───────────────────────────────────────────────────────────
+    function clearChat() {
+      conversationHistory = [];
+      chatContainer.innerHTML = '';
+      // Re-add empty state
+      const es = document.createElement('div');
+      es.id = 'empty-state';
+      es.className = '';
+      es.innerHTML = `
+        <div class="welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+          </svg>
+        </div>
+        <h2>How can I help you today?</h2>
+        <p>Ask me anything — from complex coding problems to creative writing, research, analysis, and beyond.</p>
+        <div class="suggestion-grid">
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Explain a concept</strong>
+            Explain quantum entanglement in simple terms
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Write some code</strong>
+            Build a REST API with Node.js and Express
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Analyze & summarize</strong>
+            What are the key trends in AI in 2025?
+          </div>
+          <div class="suggestion-card" onclick="useSuggestion(this)">
+            <strong>Creative writing</strong>
+            Write a short story about a time traveler
+          </div>
+        </div>`;
+      chatContainer.appendChild(es);
+    }
+
+    // ─── Scroll to Bottom ─────────────────────────────────────────────────────
+    function scrollToBottom() {
+      chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+    }
+
+    // ─── Error Toast ──────────────────────────────────────────────────────────
+    function showError(msg) {
+      errorToast.textContent = msg;
+      errorToast.classList.add('show');
+      setTimeout(() => errorToast.classList.remove('show'), 4000);
+    }
+  </script>
+</body>
+</html>
